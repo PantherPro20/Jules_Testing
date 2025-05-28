@@ -146,17 +146,20 @@ async def main():
 
     try:
         while not exit_flag.is_set():
-            print("DEBUG: Top of main async loop.") # New first line in loop
+            print(f"DEBUG MAIN_LOOP: Top, paused={paused}, current_task='{current_task}', queue_len={len(task_queue)}")
             if paused:
                 if not listener_task.done(): # Keep listener alive by yielding
                     await asyncio.sleep(0.1)
                 continue
 
             if current_task is None:
+                print(f"DEBUG MAIN_LOOP: current_task is None. Checking task_queue (len={len(task_queue)}).")
                 if task_queue:
                     current_task = task_queue.popleft()
-                    print(f"Processing task from queue: {current_task}")
+                    print(f"DEBUG MAIN_LOOP: Dequeued task: '{current_task}'.")
+                    print(f"Processing task from queue: {current_task}") # Existing print
                 else:
+                    print("DEBUG MAIN_LOOP: task_queue is empty. No new task to process.") # New print
                     # Prompt for a new task only if no task is active and queue is empty
                     # This part is tricky with the separate input thread.
                     # For now, let's rely on the keyboard_listener to add tasks
@@ -211,7 +214,8 @@ async def main():
                     print(f"❌ Error running agent for task '{current_task}': {e}")
                 
                 current_task = None # Reset current_task after processing or error
-
+            
+            print(f"DEBUG MAIN_LOOP: End of loop iteration. current_task='{current_task}'.")
             await asyncio.sleep(0.1) # Yield control regularly
 
     finally:
