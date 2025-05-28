@@ -6,6 +6,8 @@
 import os
 import subprocess
 import asyncio
+import sys # Added import
+import time # Added import
 from typing import List, Deque
 from dotenv import load_dotenv
 from pydantic import BaseModel, SecretStr
@@ -104,11 +106,19 @@ def keyboard_listener():
                 # Option 3: Print a help message
                 print("DEBUG: Input received while not paused and not a special command. Ignoring. Type 'r' to pause first if you want to add tasks.")
 
-        except EOFError: # Happens if stdin is closed (e.g. if script is piped)
-            if not exit_flag.is_set():
-                print("DEBUG: keyboard_listener - EOFError, stopping listener.")
-                exit_flag.set()
-            break
+        except EOFError:
+            print("DEBUG: keyboard_listener - EOFError encountered with input(). Will wait and try again.")
+            try:
+                # Try to ensure stdin is clear or give it a moment
+                # This is speculative, behavior of input() after EOF can be tricky
+                time.sleep(2) 
+            except Exception as e_sleep: # Catch if time.sleep is interrupted
+                 print(f"DEBUG: keyboard_listener - sleep after EOF was interrupted: {e_sleep}")
+                 if not exit_flag.is_set(): # If something else didn't already signal exit
+                     exit_flag.set() # Safer to exit if sleep is broken
+                 break # Exit listener loop
+            print("DEBUG: keyboard_listener - Retrying input() after EOF.")
+            continue # Continue to the next iteration of the while loop, to try input() again
         except Exception as e: # Catch any other unexpected errors in the listener
             if not exit_flag.is_set():
                 print(f"DEBUG: keyboard_listener - Unexpected error: {e}, stopping listener.")
@@ -131,11 +141,21 @@ async def main():
         # listener_task = asyncio.to_thread(keyboard_listener) # This was the old line
         listener_task = await asyncio.to_thread(keyboard_listener) # Corrected: added await
         print(f"DEBUG: keyboard_listener thread execution awaited. Listener task object: {listener_task}")
-    except Exception as e:
-        print(f"DEBUG: FAILED to start/await keyboard listener: {e}.") # Modified message slightly
-        print(f"Failed to start keyboard listener: {e}. Manual pause/task adding will not work.")
+        
+        # New lines to add:
+        print("DEBUG: Flushing stdout and sleeping briefly before PRE_MAIN_LOOP print...")
+        sys.stdout.flush()
+        time.sleep(0.1) # Brief pause to allow flush and any pending I/O
+    except BaseException as be: # Catch more fundamental exceptions, including SystemExit, KeyboardInterrupt
+        print(f"DEBUG: FAILED to start/await keyboard listener (caught BaseException): {type(be).__name__} - {be}")
+        print(f"Failed to start keyboard listener: {be}. Manual pause/task adding will not work.")
         # Optionally, exit if listener is critical
-        # listener_task = None # Ensure it's defined for the finally block - already initialized
+        if listener_task is None: # If it was never assigned due to early BaseException from await
+             print("DEBUG: listener_task was None when BaseException was caught.")
+        # It's generally good practice to re-raise KeyboardInterrupt or SystemExit if you don't intend to suppress them
+        if isinstance(be, KeyboardInterrupt) or isinstance(be, SystemExit):
+            print("DEBUG: Re-raising KeyboardInterrupt or SystemExit caught from listener await.")
+            raise
         # return
 
     current_task = None
