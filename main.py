@@ -69,35 +69,12 @@ llm = ChatGoogleGenerativeAI(
 )
 
 def keyboard_listener():
-    global paused
-    global task_queue
-    print("DEBUG: keyboard_listener function entered (in thread).")
-    print("DEBUG: Simplified keyboard_listener started (NO input() call).") # New message
-    i = 0
-    while not exit_flag.is_set():
-        try:
-            print(f"DEBUG: keyboard_listener alive: iteration {i}")
-            i += 1
-            # Instead of input(), just sleep. 
-            # We're testing if the thread runs and prints.
-            # Use a blocking sleep here as input() was blocking.
-            import time 
-            time.sleep(2) # Sleep for 2 seconds
-
-            # Simulate 'r' key press every few iterations to test pause toggle
-            if i % 5 == 0:
-                print("DEBUG: keyboard_listener simulating 'r' press.")
-                paused = not paused
-                if paused:
-                    print("DEBUG: keyboard_listener - Paused state now True.")
-                else:
-                    print("DEBUG: keyboard_listener - Paused state now False.")
-
-        except Exception as e:
-            if not exit_flag.is_set():
-                print(f"DEBUG: keyboard_listener error in simplified loop: {e}")
-            break # Exit loop on error
-    print("DEBUG: Simplified keyboard_listener stopped.")
+    # global paused # No longer needed for this test
+    # global task_queue # No longer needed for this test
+    print("DEBUG: keyboard_listener function entered (in thread) - EXTREMELY SIMPLIFIED.")
+    print("DEBUG: keyboard_listener_simplified_test_message_from_thread")
+    # The thread will now do nothing else and exit.
+    print("DEBUG: keyboard_listener EXTREMELY SIMPLIFIED exiting.")
 
 
 async def main():
@@ -108,13 +85,15 @@ async def main():
     # Start keyboard listener in a separate thread
     # asyncio.to_thread requires Python 3.9+
     print("DEBUG: About to start keyboard_listener thread...")
+    listener_task = None # Initialize listener_task to None
     try:
         listener_task = asyncio.to_thread(keyboard_listener)
-        print("DEBUG: keyboard_listener thread started via asyncio.to_thread.")
+        print(f"DEBUG: keyboard_listener thread started via asyncio.to_thread. Task object: {listener_task}") # Modified line
     except Exception as e:
         print(f"DEBUG: FAILED to start keyboard listener: {e}.")
         print(f"Failed to start keyboard listener: {e}. Manual pause/task adding will not work.")
         # Optionally, exit if listener is critical
+        # listener_task = None # Ensure it's defined for the finally block - already initialized
         # return
 
     current_task = None
@@ -197,7 +176,7 @@ async def main():
         print("Main loop ended. Cleaning up...")
         exit_flag.set() # Ensure listener knows to exit
 
-        if 'listener_task' in locals() and not listener_task.done():
+        if 'listener_task' in locals() and listener_task is not None and not listener_task.done():
             print("Waiting for keyboard listener to stop...")
             # We can't directly await listener_task.join() in an async function
             # but setting exit_flag and giving it a moment should be enough.
