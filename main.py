@@ -71,47 +71,33 @@ llm = ChatGoogleGenerativeAI(
 def keyboard_listener():
     global paused
     global task_queue
-    print("DEBUG: keyboard_listener function entered (in thread).") # New first line
-    print("Keyboard listener started. Press 'r' to pause/resume. Type 'exit' or 'quit' to stop.")
+    print("DEBUG: keyboard_listener function entered (in thread).")
+    print("DEBUG: Simplified keyboard_listener started (NO input() call).") # New message
+    i = 0
     while not exit_flag.is_set():
         try:
-            command = input() # Blocking call
-            if exit_flag.is_set(): # Check again after input returns
-                break
+            print(f"DEBUG: keyboard_listener alive: iteration {i}")
+            i += 1
+            # Instead of input(), just sleep. 
+            # We're testing if the thread runs and prints.
+            # Use a blocking sleep here as input() was blocking.
+            import time 
+            time.sleep(2) # Sleep for 2 seconds
 
-            if command.lower() == 'r':
+            # Simulate 'r' key press every few iterations to test pause toggle
+            if i % 5 == 0:
+                print("DEBUG: keyboard_listener simulating 'r' press.")
                 paused = not paused
                 if paused:
-                    print("Paused. Press 'r' to resume or enter a new task:")
+                    print("DEBUG: keyboard_listener - Paused state now True.")
                 else:
-                    print("Resumed.")
-            elif paused:
-                if command.lower() in ['exit', 'quit']:
-                    print("Exiting...")
-                    exit_flag.set() # Signal main loop and listener to exit
-                    break 
-                task_queue.append(command)
-                print(f"Task '{command}' added to queue. Paused. Press 'r' to resume or enter a new task:")
-            elif command.lower() in ['exit', 'quit']:
-                print("Exiting...")
-                exit_flag.set() # Signal main loop and listener to exit
-                break
-            # If not paused and not 'r' or 'exit'/'quit', the input is ignored by the listener
-            # or you can choose to add it to the queue directly
-            # else:
-            #     print("Type 'r' to pause, or 'exit'/'quit' to stop.")
+                    print("DEBUG: keyboard_listener - Paused state now False.")
 
-        except EOFError: # Happens if stdin is closed
-            if not exit_flag.is_set():
-                print("Keyboard listener: EOFError, stopping.")
-                exit_flag.set()
-            break
         except Exception as e:
             if not exit_flag.is_set():
-                print(f"Keyboard listener error: {e}")
-            # Depending on the error, you might want to break or continue
-            # For now, let's continue unless it's a critical error that exit_flag should handle
-    print("Keyboard listener stopped.")
+                print(f"DEBUG: keyboard_listener error in simplified loop: {e}")
+            break # Exit loop on error
+    print("DEBUG: Simplified keyboard_listener stopped.")
 
 
 async def main():
