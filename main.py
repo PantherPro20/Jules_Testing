@@ -130,7 +130,7 @@ async def main():
     try:
         # listener_task = asyncio.to_thread(keyboard_listener) # This was the old line
         listener_task = await asyncio.to_thread(keyboard_listener) # Corrected: added await
-        print(f"DEBUG: keyboard_listener thread execution awaited. Task object (legacy, from non-awaited call): {listener_task}")
+        print(f"DEBUG: keyboard_listener thread execution awaited. Listener task object: {listener_task}")
     except Exception as e:
         print(f"DEBUG: FAILED to start/await keyboard listener: {e}.") # Modified message slightly
         print(f"Failed to start keyboard listener: {e}. Manual pause/task adding will not work.")
@@ -145,6 +145,7 @@ async def main():
     }
 
     try:
+        print(f"DEBUG PRE_MAIN_LOOP: About to enter main loop. exit_flag.is_set() = {exit_flag.is_set()}")
         while not exit_flag.is_set():
             print(f"DEBUG MAIN_LOOP: Top, paused={paused}, current_task='{current_task}', queue_len={len(task_queue)}")
             if paused:
