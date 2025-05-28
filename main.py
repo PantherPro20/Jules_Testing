@@ -69,12 +69,53 @@ llm = ChatGoogleGenerativeAI(
 )
 
 def keyboard_listener():
-    # global paused # No longer needed for this test
-    # global task_queue # No longer needed for this test
-    print("DEBUG: keyboard_listener function entered (in thread) - EXTREMELY SIMPLIFIED.")
-    print("DEBUG: keyboard_listener_simplified_test_message_from_thread")
-    # The thread will now do nothing else and exit.
-    print("DEBUG: keyboard_listener EXTREMELY SIMPLIFIED exiting.")
+    global paused
+    global task_queue
+    print("DEBUG: keyboard_listener function entered (in thread).") # Ensure this is the first line
+    print("Keyboard listener started. Press 'r' to pause/resume. Type 'exit' or 'quit' to stop.")
+    while not exit_flag.is_set():
+        try:
+            # This is a blocking call, run in a separate thread by asyncio.to_thread
+            command = input() 
+            if exit_flag.is_set(): # Check flag immediately after input returns
+                break
+
+            if command.lower() == 'r':
+                paused = not paused
+                if paused:
+                    print("Paused. Press 'r' to resume or enter a new task:")
+                else:
+                    print("Resumed.")
+            elif paused:
+                if command.lower() in ['exit', 'quit']:
+                    print("DEBUG: keyboard_listener - 'exit'/'quit' detected while paused.")
+                    exit_flag.set()
+                    break
+                task_queue.append(command)
+                print(f"Task '{command}' added to queue. Paused. Press 'r' to resume or enter a new task:")
+            elif command.lower() in ['exit', 'quit']:
+                print("DEBUG: keyboard_listener - 'exit'/'quit' detected while running.")
+                exit_flag.set()
+                break
+            else:
+                # If not paused and not a special command, what should it do?
+                # Option 1: Ignore (current behavior of the snippet)
+                # Option 2: Add to task_queue directly (could be surprising)
+                # Option 3: Print a help message
+                print("DEBUG: Input received while not paused and not a special command. Ignoring. Type 'r' to pause first if you want to add tasks.")
+
+        except EOFError: # Happens if stdin is closed (e.g. if script is piped)
+            if not exit_flag.is_set():
+                print("DEBUG: keyboard_listener - EOFError, stopping listener.")
+                exit_flag.set()
+            break
+        except Exception as e: # Catch any other unexpected errors in the listener
+            if not exit_flag.is_set():
+                print(f"DEBUG: keyboard_listener - Unexpected error: {e}, stopping listener.")
+                # Consider if exit_flag.set() is always appropriate here
+            # For now, let's break the loop on any error to be safe
+            break 
+    print("DEBUG: Keyboard listener stopped.")
 
 
 async def main():
@@ -87,10 +128,11 @@ async def main():
     print("DEBUG: About to start keyboard_listener thread...")
     listener_task = None # Initialize listener_task to None
     try:
-        listener_task = asyncio.to_thread(keyboard_listener)
-        print(f"DEBUG: keyboard_listener thread started via asyncio.to_thread. Task object: {listener_task}") # Modified line
+        # listener_task = asyncio.to_thread(keyboard_listener) # This was the old line
+        listener_task = await asyncio.to_thread(keyboard_listener) # Corrected: added await
+        print(f"DEBUG: keyboard_listener thread execution awaited. Task object (legacy, from non-awaited call): {listener_task}")
     except Exception as e:
-        print(f"DEBUG: FAILED to start keyboard listener: {e}.")
+        print(f"DEBUG: FAILED to start/await keyboard listener: {e}.") # Modified message slightly
         print(f"Failed to start keyboard listener: {e}. Manual pause/task adding will not work.")
         # Optionally, exit if listener is critical
         # listener_task = None # Ensure it's defined for the finally block - already initialized
